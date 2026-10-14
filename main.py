@@ -655,7 +655,7 @@ def create_followup_approval(
 ):
     allow(user, "admin")
 
-    result = supabase.table("followup_approvals").insert({
+    result = db.table("followup_approvals").insert({
         "complaint_id": str(request.complaint_id),
         "recommended_action": request.recommended_action,
         "reason": request.reason,
@@ -678,7 +678,7 @@ def review_followup_approval(
     allow(user, "admin")
 
     existing = (
-        supabase.table("followup_approvals")
+        db.table("followup_approvals")
         .select("id, status")
         .eq("id", str(approval_id))
         .limit(1)
@@ -698,7 +698,7 @@ def review_followup_approval(
         )
 
     result = (
-        supabase.table("followup_approvals")
+        db.table("followup_approvals")
         .update({
             "status": request.decision,
             "reviewed_by": user["id"],
@@ -728,7 +728,7 @@ def get_followup_approvals(
     allow(user, "admin")
 
     result = (
-        supabase.table("followup_approvals")
+        db.table("followup_approvals")
         .select("*")
         .order("created_at", desc=True)
         .execute()
