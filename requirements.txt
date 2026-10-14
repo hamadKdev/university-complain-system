@@ -4,3 +4,4 @@ uvicorn[standard]
 supabase
 python-dotenv
 requests
+gotrue
