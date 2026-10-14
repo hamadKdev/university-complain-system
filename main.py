@@ -1,5 +1,7 @@
 
 import os
+import secrets
+from fastapi import Header
 from pydantic import BaseModel
 from datetime import datetime, timezone
 from collections import Counter
@@ -664,6 +666,40 @@ def create_followup_approval(
         "message": "Approval request created",
         "approval": result.data[0] if result.data else None
     }
+    
+@app.post("/internal/followup-approvals")
+def create_internal_followup_approval(
+    request: FollowupApprovalCreate,
+    x_service_token: str | None = Header(default=None)
+):
+    expected_token = os.getenv("N8N_SERVICE_TOKEN")
+
+    # Fail securely if the environment variable is missing
+    if not expected_token or not x_service_token:
+        raise HTTPException(
+            status_code=401,
+            detail="Unauthorized service"
+        )
+
+    if not secrets.compare_digest(x_service_token, expected_token):
+        raise HTTPException(
+            status_code=401,
+            detail="Unauthorized service"
+        )
+
+    result = db.table("followup_approvals").insert({
+        "complaint_id": str(request.complaint_id),
+        "recommended_action": request.recommended_action,
+        "reason": request.reason,
+        "status": "pending",
+        "requested_by": None
+    }).execute()
+
+    return {
+        "message": "Approval request created",
+        "approval": result.data[0] if result.data else None
+    }
+
 
 
 @app.patch("/followup-approvals/{approval_id}")
