@@ -3,3 +3,6 @@ fastapi
 uvicorn[standard]
 supabase
 python-dotenv
+requests
+gotrue
+email-validator

@@ -1,5 +1,7 @@
 
 import os
+import secrets
+from fastapi import Header
 from pydantic import BaseModel
 from datetime import datetime, timezone
 from collections import Counter
@@ -37,14 +39,11 @@ security = HTTPBearer()
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        os.getenv("FRONTEND_URL", "http://localhost:5173")
-    ],
-    allow_credentials=True,
+    allow_origins=["*"],
+    allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
 ROLES = {"student", "staff", "admin"}
 STATUSES = {
     "submitted", "under_review", "assigned", "in_progress",
@@ -655,7 +654,7 @@ def create_followup_approval(
 ):
     allow(user, "admin")
 
-    result = supabase.table("followup_approvals").insert({
+    result = db.table("followup_approvals").insert({
         "complaint_id": str(request.complaint_id),
         "recommended_action": request.recommended_action,
         "reason": request.reason,
@@ -667,6 +666,40 @@ def create_followup_approval(
         "message": "Approval request created",
         "approval": result.data[0] if result.data else None
     }
+    
+@app.post("/internal/followup-approvals")
+def create_internal_followup_approval(
+    request: FollowupApprovalCreate,
+    x_service_token: str | None = Header(default=None)
+):
+    expected_token = os.getenv("N8N_SERVICE_TOKEN")
+
+    # Fail securely if the environment variable is missing
+    if not expected_token or not x_service_token:
+        raise HTTPException(
+            status_code=401,
+            detail="Unauthorized service"
+        )
+
+    if not secrets.compare_digest(x_service_token, expected_token):
+        raise HTTPException(
+            status_code=401,
+            detail="Unauthorized service"
+        )
+
+    result = db.table("followup_approvals").insert({
+        "complaint_id": str(request.complaint_id),
+        "recommended_action": request.recommended_action,
+        "reason": request.reason,
+        "status": "pending",
+        "requested_by": None
+    }).execute()
+
+    return {
+        "message": "Approval request created",
+        "approval": result.data[0] if result.data else None
+    }
+
 
 
 @app.patch("/followup-approvals/{approval_id}")
@@ -678,7 +711,7 @@ def review_followup_approval(
     allow(user, "admin")
 
     existing = (
-        supabase.table("followup_approvals")
+        db.table("followup_approvals")
         .select("id, status")
         .eq("id", str(approval_id))
         .limit(1)
@@ -698,7 +731,7 @@ def review_followup_approval(
         )
 
     result = (
-        supabase.table("followup_approvals")
+        db.table("followup_approvals")
         .update({
             "status": request.decision,
             "reviewed_by": user["id"],
@@ -728,7 +761,7 @@ def get_followup_approvals(
     allow(user, "admin")
 
     result = (
-        supabase.table("followup_approvals")
+        db.table("followup_approvals")
         .select("*")
         .order("created_at", desc=True)
         .execute()
