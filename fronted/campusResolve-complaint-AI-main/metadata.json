@@ -1,0 +1,6 @@
+{
+  "name": "CampusResolve AI — Intelligent Campus Operations",
+  "description": "Agentic AI-powered university complaint management system connecting students, department staff, and administration with transparent triage, smart routing, and human-in-the-loop approvals.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
